@@ -14,14 +14,26 @@ import java.sql.SQLException;
 public final class DatabaseConnection {
 
     // ── Parámetros de conexión ──────────────────────────────────────────────
-    private static final String URL = "jdbc:postgresql://localhost:5432/gestion_funcionarios";
-    private static final String USER = "postgres";
-    private static final String PASSWORD = "Admin"; // ← ajustar al entorno
+    private static String URL = "";
+    private static String USER = "";
+    private static String PASSWORD = "";
 
     private static HikariDataSource dataSource;
 
     /** Constructor privado: clase utilitaria, no instanciable. */
     private DatabaseConnection() {
+    }
+
+    private static void cargarConfiguracion() {
+        try (java.io.FileInputStream fis = new java.io.FileInputStream("db.properties")) {
+            java.util.Properties props = new java.util.Properties();
+            props.load(fis);
+            URL = props.getProperty("db.url", URL);
+            USER = props.getProperty("db.user", USER);
+            PASSWORD = props.getProperty("db.password", PASSWORD);
+        } catch (Exception e) {
+            System.err.println("Error crítico: No se encontró db.properties o no se pudo leer. Configure la base de datos.");
+        }
     }
 
     /**
@@ -30,6 +42,8 @@ public final class DatabaseConnection {
     private static synchronized void initPool() {
         if (dataSource != null && !dataSource.isClosed())
             return;
+
+        cargarConfiguracion();
 
         HikariConfig cfg = new HikariConfig();
         cfg.setJdbcUrl(URL);

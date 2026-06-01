@@ -80,6 +80,12 @@ CREATE TABLE IF NOT EXISTS cargos (
 --  TABLA: funcionarios  (tabla principal del CRUD)
 --  Información completa de cada funcionario
 -- ============================================================
+-- Enum de roles (para login/autorización)
+DO $$ BEGIN
+    CREATE TYPE rol_usuario AS ENUM ('ADMINISTRADOR', 'DOCENTE');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
 CREATE TABLE IF NOT EXISTS funcionarios (
     id               SERIAL PRIMARY KEY,
     nombres          VARCHAR(100) NOT NULL,
@@ -93,13 +99,14 @@ CREATE TABLE IF NOT EXISTS funcionarios (
     cargo_id         INTEGER      NOT NULL,
     municipio_id     INTEGER      NOT NULL,
     estado           VARCHAR(20)  NOT NULL DEFAULT 'ACTIVO',  -- ACTIVO / INACTIVO
+    password_hash    VARCHAR(255),
+    rol              rol_usuario  NOT NULL DEFAULT 'DOCENTE',
     created_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_func_tipo_doc   FOREIGN KEY (tipo_doc_id)  REFERENCES tipo_documento(id) ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT fk_func_cargo      FOREIGN KEY (cargo_id)     REFERENCES cargos(id)         ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT fk_func_municipio  FOREIGN KEY (municipio_id) REFERENCES municipios(id)     ON UPDATE CASCADE ON DELETE RESTRICT,
-    CONSTRAINT chk_estado         CHECK (estado IN ('ACTIVO','INACTIVO')),
-    CONSTRAINT chk_nivel_salarial CHECK (estado IS NOT NULL)
+    CONSTRAINT chk_estado_valor   CHECK (estado IN ('ACTIVO','INACTIVO'))
 );
 
 -- Índices de búsqueda frecuente

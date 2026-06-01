@@ -70,6 +70,15 @@ public interface FuncionarioDAO {
     boolean deleteById(int id) throws DAOException;
 
     /**
+     * Busca un funcionario por su email.
+     *
+     * @param email correo del funcionario.
+     * @return {@link Optional} con el funcionario o vacío si no existe.
+     * @throws DAOException si ocurre un error de acceso a datos.
+     */
+    Optional<Funcionario> findByEmail(String email) throws DAOException;
+
+    /**
      * Verifica si ya existe un funcionario con el número de documento dado,
      * excluyendo opcionalmente un id (útil en actualizaciones).
      *

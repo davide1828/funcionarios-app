@@ -1,9 +1,11 @@
 package com.gestion.funcionarios.ui;
 
-import com.gestion.funcionarios.dao.FuncionarioDAO;
-import com.gestion.funcionarios.dao.impl.FuncionarioDAOImpl;
 import com.gestion.funcionarios.exception.DAOException;
+import com.gestion.funcionarios.exception.UnauthorizedException;
+import com.gestion.funcionarios.exception.ValidationException;
 import com.gestion.funcionarios.model.Funcionario;
+import com.gestion.funcionarios.security.SessionContext;
+import com.gestion.funcionarios.service.FuncionarioService;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -11,6 +13,8 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -40,8 +44,9 @@ public class FuncionariosPanel extends JPanel {
     private JLabel          lblEstado;
     private JButton         btnEditar, btnEliminar;
 
-    // ── DAO ─────────────────────────────────────────────────────────────────
-    private final FuncionarioDAO dao = new FuncionarioDAOImpl();
+    // ── Servicio ────────────────────────────────────────────────────────────
+    private final FuncionarioService funcionarioService = new FuncionarioService();
+    private final boolean           esAdmin             = SessionContext.getInstance().isAdmin();
 
     // ── Constructor ─────────────────────────────────────────────────────────
     public FuncionariosPanel() {
@@ -85,14 +90,23 @@ public class FuncionariosPanel extends JPanel {
         // ── Botones CRUD ──
         JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         panelBotones.setOpaque(false);
-        JButton btnNuevo    = crearBoton("Nuevo",    COLOR_EXITO,   "➕");
-        btnEditar           = crearBoton("Editar",   COLOR_EDITAR,  "✏️");
-        btnEliminar         = crearBoton("Eliminar", COLOR_PELIGRO, "🗑");
+        JButton btnNuevo = null;
         JButton btnRefrescar = crearBoton("Actualizar", COLOR_PRIMARIO, "🔄");
 
-        panelBotones.add(btnNuevo);
-        panelBotones.add(btnEditar);
-        panelBotones.add(btnEliminar);
+        if (esAdmin) {
+            btnNuevo    = crearBoton("Nuevo",    COLOR_EXITO,   "➕");
+            btnEditar   = crearBoton("Editar",   COLOR_EDITAR,  "✏️");
+            btnEliminar = crearBoton("Eliminar", COLOR_PELIGRO, "🗑");
+            panelBotones.add(btnNuevo);
+            panelBotones.add(btnEditar);
+            panelBotones.add(btnEliminar);
+        } else {
+            JLabel lblSoloLectura = new JLabel("👁  Modo solo lectura");
+            lblSoloLectura.setFont(new Font("Segoe UI", Font.ITALIC, 12));
+            lblSoloLectura.setForeground(new Color(120, 120, 120));
+            panelBotones.add(lblSoloLectura);
+        }
+
         panelBotones.add(new JSeparator(SwingConstants.VERTICAL));
         panelBotones.add(btnRefrescar);
 
@@ -102,9 +116,15 @@ public class FuncionariosPanel extends JPanel {
         // ── Eventos ──
         btnBuscar.addActionListener(e -> buscar());
         txtBuscar.addActionListener(e -> buscar());
-        btnNuevo.addActionListener(e -> abrirFormNuevo());
-        btnEditar.addActionListener(e -> abrirFormEditar());
-        btnEliminar.addActionListener(e -> eliminarSeleccionado());
+        if (esAdmin && btnNuevo != null) {
+            btnNuevo.addActionListener(e -> abrirFormNuevo());
+        }
+        if (esAdmin && btnEditar != null) {
+            btnEditar.addActionListener(e -> abrirFormEditar());
+        }
+        if (esAdmin && btnEliminar != null) {
+            btnEliminar.addActionListener(e -> eliminarSeleccionado());
+        }
         btnRefrescar.addActionListener(e -> cargarDatos());
 
         return barra;
@@ -172,14 +192,16 @@ public class FuncionariosPanel extends JPanel {
         }
         tabla.getColumnModel().getColumn(0).setMaxWidth(50);
 
-        // Habilitar/deshabilitar botones según selección
-        tabla.getSelectionModel().addListSelectionListener(e -> {
-            boolean sel = tabla.getSelectedRow() >= 0;
-            btnEditar.setEnabled(sel);
-            btnEliminar.setEnabled(sel);
-        });
-        btnEditar.setEnabled(false);
-        btnEliminar.setEnabled(false);
+        // Habilitar/deshabilitar botones según selección (solo admin)
+        if (esAdmin) {
+            tabla.getSelectionModel().addListSelectionListener(e -> {
+                boolean sel = tabla.getSelectedRow() >= 0;
+                if (btnEditar != null)   btnEditar.setEnabled(sel);
+                if (btnEliminar != null) btnEliminar.setEnabled(sel);
+            });
+            if (btnEditar != null)   btnEditar.setEnabled(false);
+            if (btnEliminar != null) btnEliminar.setEnabled(false);
+        }
 
         JScrollPane scroll = new JScrollPane(tabla);
         scroll.setBorder(BorderFactory.createEmptyBorder());
@@ -204,9 +226,9 @@ public class FuncionariosPanel extends JPanel {
     /** Carga (o recarga) todos los funcionarios en la tabla. */
     public void cargarDatos() {
         try {
-            List<Funcionario> lista = dao.findAll();
+            List<Funcionario> lista = funcionarioService.findAll();
             poblarTabla(lista);
-        } catch (DAOException e) {
+        } catch (DAOException | UnauthorizedException e) {
             mostrarError("Error al cargar funcionarios", e);
         }
     }
@@ -215,24 +237,40 @@ public class FuncionariosPanel extends JPanel {
     private void buscar() {
         String texto = txtBuscar.getText().trim();
         try {
-            List<Funcionario> lista = texto.isEmpty() ? dao.findAll() : dao.findByTexto(texto);
+            List<Funcionario> lista = texto.isEmpty()
+                ? funcionarioService.findAll()
+                : funcionarioService.findByTexto(texto);
             poblarTabla(lista);
-        } catch (DAOException e) {
+        } catch (DAOException | UnauthorizedException e) {
             mostrarError("Error en la búsqueda", e);
         }
     }
 
     /** Abre el formulario para crear un nuevo funcionario. */
     private void abrirFormNuevo() {
+        if (!esAdmin) {
+            JOptionPane.showMessageDialog(this,
+                "No tiene permisos para crear funcionarios.",
+                "Acceso restringido", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         FuncionarioFormDialog dlg = new FuncionarioFormDialog(
             (Frame) SwingUtilities.getWindowAncestor(this), null);
         dlg.setVisible(true);
         if (dlg.isConfirmado()) {
             try {
-                dao.save(dlg.getFuncionario());
+                String password = solicitarPasswordInicial();
+                if (password == null) return; // cancelado
+                funcionarioService.create(dlg.getFuncionario(), password);
                 cargarDatos();
                 mostrarExito("Funcionario creado exitosamente.");
-            } catch (DAOException e) {
+            } catch (ValidationException e) {
+                JOptionPane.showMessageDialog(this,
+                    "⚠  Campo: " + e.getField() + "\n" + e.getMessage(),
+                    "Error de validación", JOptionPane.WARNING_MESSAGE);
+            } catch (DAOException | UnauthorizedException e) {
+                mostrarError("Error al crear funcionario", e);
+            } catch (RuntimeException e) {
                 mostrarError("Error al crear funcionario", e);
             }
         }
@@ -240,6 +278,12 @@ public class FuncionariosPanel extends JPanel {
 
     /** Abre el formulario para editar el funcionario seleccionado. */
     private void abrirFormEditar() {
+        if (!esAdmin) {
+            JOptionPane.showMessageDialog(this,
+                "No tiene permisos para editar funcionarios.",
+                "Acceso restringido", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         Funcionario f = obtenerSeleccionado();
         if (f == null) return;
         FuncionarioFormDialog dlg = new FuncionarioFormDialog(
@@ -247,10 +291,16 @@ public class FuncionariosPanel extends JPanel {
         dlg.setVisible(true);
         if (dlg.isConfirmado()) {
             try {
-                dao.update(dlg.getFuncionario());
+                funcionarioService.update(dlg.getFuncionario(), null);
                 cargarDatos();
                 mostrarExito("Funcionario actualizado exitosamente.");
-            } catch (DAOException e) {
+            } catch (ValidationException e) {
+                JOptionPane.showMessageDialog(this,
+                    "⚠  Campo: " + e.getField() + "\n" + e.getMessage(),
+                    "Error de validación", JOptionPane.WARNING_MESSAGE);
+            } catch (DAOException | UnauthorizedException e) {
+                mostrarError("Error al actualizar funcionario", e);
+            } catch (RuntimeException e) {
                 mostrarError("Error al actualizar funcionario", e);
             }
         }
@@ -258,6 +308,12 @@ public class FuncionariosPanel extends JPanel {
 
     /** Elimina el funcionario seleccionado previa confirmación. */
     private void eliminarSeleccionado() {
+        if (!esAdmin) {
+            JOptionPane.showMessageDialog(this,
+                "No tiene permisos para eliminar funcionarios.",
+                "Acceso restringido", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         Funcionario f = obtenerSeleccionado();
         if (f == null) return;
 
@@ -271,10 +327,12 @@ public class FuncionariosPanel extends JPanel {
 
         if (respuesta == JOptionPane.YES_OPTION) {
             try {
-                dao.deleteById(f.getId());
+                funcionarioService.deleteById(f.getId());
                 cargarDatos();
                 mostrarExito("Funcionario eliminado exitosamente.");
-            } catch (DAOException e) {
+            } catch (DAOException | UnauthorizedException e) {
+                mostrarError("Error al eliminar funcionario", e);
+            } catch (RuntimeException e) {
                 mostrarError("Error al eliminar funcionario", e);
             }
         }
@@ -308,8 +366,8 @@ public class FuncionariosPanel extends JPanel {
         if (fila < 0) return null;
         int id = (int) modeloTabla.getValueAt(fila, 0);
         try {
-            return dao.findById(id).orElse(null);
-        } catch (DAOException e) {
+            return funcionarioService.findById(id).orElse(null);
+        } catch (DAOException | UnauthorizedException e) {
             mostrarError("Error al obtener funcionario", e);
             return null;
         }
@@ -327,13 +385,58 @@ public class FuncionariosPanel extends JPanel {
         return btn;
     }
 
-    private void mostrarError(String titulo, DAOException e) {
-        JOptionPane.showMessageDialog(this,
-            e.getMessage(), titulo, JOptionPane.ERROR_MESSAGE);
+    private void mostrarError(String titulo, Exception e) {
+        // Mostrar error con detalle (stacktrace) para diagnóstico rápido
+        StringWriter sw = new StringWriter();
+        e.printStackTrace(new PrintWriter(sw));
+        String detalle = sw.toString();
+
+        JTextArea area = new JTextArea(detalle);
+        area.setEditable(false);
+        area.setFont(new Font("Consolas", Font.PLAIN, 12));
+        area.setRows(18);
+        area.setColumns(80);
+
+        JScrollPane scroll = new JScrollPane(area);
+        scroll.setPreferredSize(new Dimension(900, 360));
+
+        JOptionPane.showMessageDialog(
+            this,
+            scroll,
+            titulo + " — " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()),
+            JOptionPane.ERROR_MESSAGE
+        );
     }
 
     private void mostrarExito(String mensaje) {
         JOptionPane.showMessageDialog(this,
             mensaje, "Operación exitosa", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private String solicitarPasswordInicial() {
+        JPasswordField p1 = new JPasswordField();
+        JPasswordField p2 = new JPasswordField();
+        Object[] msg = {
+            "Contraseña inicial:", p1,
+            "Confirmar contraseña:", p2
+        };
+        int resp = JOptionPane.showConfirmDialog(
+            this,
+            msg,
+            "Asignar contraseña inicial",
+            JOptionPane.OK_CANCEL_OPTION,
+            JOptionPane.QUESTION_MESSAGE
+        );
+        if (resp != JOptionPane.OK_OPTION) return null;
+
+        String s1 = new String(p1.getPassword());
+        String s2 = new String(p2.getPassword());
+        if (!s1.equals(s2)) {
+            JOptionPane.showMessageDialog(this,
+                "Las contraseñas no coinciden.",
+                "Validación", JOptionPane.WARNING_MESSAGE);
+            return null;
+        }
+        return s1;
     }
 }

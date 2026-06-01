@@ -31,15 +31,21 @@ public class CatalogosPanel extends JPanel {
         setBackground(new Color(245, 247, 250));
         JTabbedPane tabs = new JTabbedPane();
         tabs.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        tabs.addTab("Estados equipo", buildCrudTab("Estado",
-            () -> { try { return service.findAllEstados(); } catch (Exception e) { return List.of(); } },
-            this::crearEstado, this::editarEstado, this::eliminarEstado));
-        tabs.addTab("Marcas", buildCrudTab("Marca",
-            () -> { try { return service.findAllMarcas(); } catch (Exception e) { return List.of(); } },
-            this::crearMarca, this::editarMarca, this::eliminarMarca));
-        tabs.addTab("Tipos de equipo", buildCrudTab("Tipo",
-            () -> { try { return service.findAllTipos(); } catch (Exception e) { return List.of(); } },
-            this::crearTipo, this::editarTipo, this::eliminarTipo));
+        tabs.addTab("Estados equipo", buildCrudTab(
+            "Estado",
+            () -> { try { return service.findAllEstados(); } catch (Exception e) { error(e.getMessage()); return List.of(); } },
+            this::crearEstado
+        ));
+        tabs.addTab("Marcas", buildCrudTab(
+            "Marca",
+            () -> { try { return service.findAllMarcas(); } catch (Exception e) { error(e.getMessage()); return List.of(); } },
+            this::crearMarca
+        ));
+        tabs.addTab("Tipos de equipo", buildCrudTab(
+            "Tipo",
+            () -> { try { return service.findAllTipos(); } catch (Exception e) { error(e.getMessage()); return List.of(); } },
+            this::crearTipo
+        ));
         add(tabs, BorderLayout.CENTER);
     }
 
@@ -47,9 +53,7 @@ public class CatalogosPanel extends JPanel {
     private <T extends Object> JPanel buildCrudTab(
             String entidad,
             Supplier<List<T>> loader,
-            Runnable onNuevo,
-            Runnable onEditar,
-            Runnable onEliminar) {
+            Runnable onNuevo) {
 
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(Color.WHITE);
@@ -104,8 +108,69 @@ public class CatalogosPanel extends JPanel {
 
         btnNuevo.addActionListener(e    -> { onNuevo.run(); cargar.run(); });
         btnRefresh.addActionListener(e  -> cargar.run());
-        btnEditar.addActionListener(e   -> { if (tabla.getSelectedRow() < 0) return; onEditar.run(); cargar.run(); });
-        btnEliminar.addActionListener(e -> { if (tabla.getSelectedRow() < 0) return; onEliminar.run(); cargar.run(); });
+        btnEditar.addActionListener(e   -> {
+            int row = tabla.getSelectedRow();
+            if (row < 0) return;
+            try {
+                int id = (int) modelo.getValueAt(row, 0);
+                String nombreActual = String.valueOf(modelo.getValueAt(row, 1));
+                String descActual = String.valueOf(modelo.getValueAt(row, 2));
+                boolean activoActual = Boolean.TRUE.equals(modelo.getValueAt(row, 3));
+
+                JTextField txtNombre = new JTextField(nombreActual);
+                JTextField txtDesc = new JTextField("null".equals(descActual) ? "" : descActual);
+                JCheckBox chkActivo = new JCheckBox("Activo", activoActual);
+                Object[] msg = {"Nombre:", txtNombre, "Descripción:", txtDesc, chkActivo};
+                int resp = JOptionPane.showConfirmDialog(this, msg,
+                    "Editar " + entidad, JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
+                if (resp != JOptionPane.OK_OPTION) return;
+
+                String nombre = txtNombre.getText().trim();
+                String desc = txtDesc.getText().trim();
+                boolean activo = chkActivo.isSelected();
+                if (nombre.isBlank()) return;
+
+                if ("Estado".equals(entidad)) {
+                    service.updateEstado(new EstadoEquipo(id, nombre, desc.isBlank() ? null : desc, activo));
+                } else if ("Marca".equals(entidad)) {
+                    service.updateMarca(new Marca(id, nombre, desc.isBlank() ? null : desc, activo));
+                } else if ("Tipo".equals(entidad)) {
+                    service.updateTipo(new TipoEquipo(id, nombre, desc.isBlank() ? null : desc, activo));
+                }
+                cargar.run();
+            } catch (DAOException | UnauthorizedException ex) {
+                error(ex.getMessage());
+            } catch (RuntimeException ex) {
+                error(ex.getMessage());
+            }
+        });
+        btnEliminar.addActionListener(e -> {
+            int row = tabla.getSelectedRow();
+            if (row < 0) return;
+            try {
+                int id = (int) modelo.getValueAt(row, 0);
+                String nombreActual = String.valueOf(modelo.getValueAt(row, 1));
+                int resp = JOptionPane.showConfirmDialog(this,
+                    "¿Eliminar " + entidad + " \"" + nombreActual + "\"?",
+                    "Confirmar eliminación",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+                if (resp != JOptionPane.YES_OPTION) return;
+
+                if ("Estado".equals(entidad)) {
+                    service.deleteEstadoById(id);
+                } else if ("Marca".equals(entidad)) {
+                    service.deleteMarcaById(id);
+                } else if ("Tipo".equals(entidad)) {
+                    service.deleteTipoById(id);
+                }
+                cargar.run();
+            } catch (DAOException | UnauthorizedException ex) {
+                error(ex.getMessage());
+            } catch (RuntimeException ex) {
+                error(ex.getMessage());
+            }
+        });
 
         tabla.getSelectionModel().addListSelectionListener(ev -> {
             boolean sel = tabla.getSelectedRow() >= 0;
@@ -127,8 +192,6 @@ public class CatalogosPanel extends JPanel {
         try { service.createEstado(new EstadoEquipo(0, nombre.trim(), desc, true)); }
         catch (DAOException | UnauthorizedException e) { error(e.getMessage()); }
     }
-    private void editarEstado()   { /* similar a crearEstado con datos prellenados */ }
-    private void eliminarEstado() { /* lógica de confirmación y delete */ }
 
     // ── Acciones Marcas ─────────────────────────────────────────────────────
     private void crearMarca() {
@@ -138,8 +201,6 @@ public class CatalogosPanel extends JPanel {
         try { service.createMarca(new Marca(0, nombre.trim(), desc, true)); }
         catch (DAOException | UnauthorizedException e) { error(e.getMessage()); }
     }
-    private void editarMarca()   { }
-    private void eliminarMarca() { }
 
     // ── Acciones Tipos ──────────────────────────────────────────────────────
     private void crearTipo() {
@@ -149,8 +210,6 @@ public class CatalogosPanel extends JPanel {
         try { service.createTipo(new TipoEquipo(0, nombre.trim(), desc, true)); }
         catch (DAOException | UnauthorizedException e) { error(e.getMessage()); }
     }
-    private void editarTipo()   { }
-    private void eliminarTipo() { }
 
     private JButton boton(String txt, Color bg, String icon) {
         JButton b = new JButton(icon + "  " + txt);

@@ -9,6 +9,7 @@ import com.gestion.funcionarios.dao.impl.TipoDocumentoDAOImpl;
 import com.gestion.funcionarios.exception.DAOException;
 import com.gestion.funcionarios.exception.ValidationException;
 import com.gestion.funcionarios.model.*;
+import com.gestion.funcionarios.security.Role;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -42,6 +43,7 @@ public class FuncionarioFormDialog extends JDialog {
     private JComboBox<Cargo>         cmbCargo;
     private JComboBox<Municipio>     cmbMunicipio;
     private JComboBox<String>        cmbEstado;
+    private JComboBox<Role>          cmbRol;
 
     // ── Estado ──────────────────────────────────────────────────────────────
     private Funcionario funcionario;   // null = modo creación
@@ -139,6 +141,13 @@ public class FuncionarioFormDialog extends JDialog {
         cmbEstado.setFont(FUENTE_CAMPO);
         addField(form, gbc, cmbEstado, 1, 6);
 
+        // Fila 7: Rol
+        addLabel(form, gbc, "Rol *", 2, 6);
+        cmbRol = new JComboBox<>(Role.values());
+        cmbRol.setFont(FUENTE_CAMPO);
+        cmbRol.setSelectedItem(Role.DOCENTE); // valor por defecto al crear
+        addField(form, gbc, cmbRol, 3, 6);
+
         contenedor.add(new JScrollPane(form), BorderLayout.CENTER);
 
         // ── Botones ──
@@ -213,6 +222,8 @@ public class FuncionarioFormDialog extends JDialog {
             throw new ValidationException("Cargo", "Seleccione un cargo.");
         if (cmbMunicipio.getSelectedItem() == null)
             throw new ValidationException("Municipio", "Seleccione un municipio.");
+        if (cmbRol.getSelectedItem() == null)
+            throw new ValidationException("Rol", "Seleccione un rol.");
 
         Funcionario f = (funcionario != null) ? funcionario : new Funcionario();
         f.setNombres(nombres);
@@ -226,6 +237,7 @@ public class FuncionarioFormDialog extends JDialog {
         f.setCargo((Cargo) cmbCargo.getSelectedItem());
         f.setMunicipio((Municipio) cmbMunicipio.getSelectedItem());
         f.setEstado((String) cmbEstado.getSelectedItem());
+        f.setRol((Role) cmbRol.getSelectedItem());
         return f;
     }
 
@@ -257,6 +269,7 @@ public class FuncionarioFormDialog extends JDialog {
         txtFechaNacimiento.setText(funcionario.getFechaNacimiento().format(FMT));
         txtFechaIngreso.setText(funcionario.getFechaIngreso().format(FMT));
         cmbEstado.setSelectedItem(funcionario.getEstado());
+        cmbRol.setSelectedItem(funcionario.getRol() != null ? funcionario.getRol() : Role.DOCENTE);
 
         // Seleccionar items de los combos por id
         selectCombo(cmbTipoDoc, funcionario.getTipoDocumento().getId());

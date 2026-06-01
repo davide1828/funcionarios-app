@@ -18,7 +18,7 @@ import java.util.Optional;
  *
  * Reglas de acceso (token requerido en todos los métodos):
  *   ADMINISTRADOR : CRUD completo.
- *   DOCENTE       : sin acceso (solo puede ver inventarios).
+ *   DOCENTE       : sin acceso (solo puede visualizar inventarios).
  */
 public class FuncionarioService {
 

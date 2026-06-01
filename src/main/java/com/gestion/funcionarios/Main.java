@@ -1,6 +1,6 @@
 package com.gestion.funcionarios;
 
-import com.gestion.funcionarios.ui.MainFrame;
+import com.gestion.funcionarios.ui.LoginFrame;
 
 import javax.swing.*;
 
@@ -8,7 +8,7 @@ import javax.swing.*;
  * Punto de entrada de la aplicación.
  *
  * Configura el Look & Feel del sistema operativo y lanza
- * la ventana principal en el Event Dispatch Thread (EDT)
+ * la ventana de login en el Event Dispatch Thread (EDT)
  * de Swing para garantizar la seguridad de hilos.
  */
 public class Main {
@@ -25,7 +25,7 @@ public class Main {
 
         // Lanzar la UI en el EDT (buena práctica obligatoria en Swing)
         SwingUtilities.invokeLater(() -> {
-            MainFrame frame = new MainFrame();
+            LoginFrame frame = new LoginFrame();
             frame.setVisible(true);
         });
     }

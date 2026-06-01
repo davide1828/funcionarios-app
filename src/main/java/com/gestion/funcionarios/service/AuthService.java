@@ -7,6 +7,7 @@ import com.gestion.funcionarios.exception.DAOException;
 import com.gestion.funcionarios.model.Funcionario;
 import com.gestion.funcionarios.security.JwtUtil;
 import com.gestion.funcionarios.security.PasswordUtil;
+import com.gestion.funcionarios.security.Role;
 import com.gestion.funcionarios.security.SessionContext;
 
 /**
@@ -52,6 +53,11 @@ public class AuthService {
 
         if (!PasswordUtil.verify(password, funcionario.getPasswordHash())) {
             throw new AuthException("Credenciales incorrectas.");
+        }
+
+        // Backward-compatible: si el usuario viene sin rol en BD, asignar DOCENTE
+        if (funcionario.getRol() == null) {
+            funcionario.setRol(Role.DOCENTE);
         }
 
         String token = JwtUtil.generateToken(

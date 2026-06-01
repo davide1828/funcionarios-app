@@ -1,6 +1,7 @@
 package com.gestion.funcionarios.ui;
 
 import com.gestion.funcionarios.exception.DAOException;
+import com.gestion.funcionarios.exception.UnauthorizedException;
 import com.gestion.funcionarios.model.*;
 import com.gestion.funcionarios.service.CatalogoService;
 
@@ -137,6 +138,10 @@ public class InventarioFormDialog extends JDialog {
         } catch (DAOException e) {
             JOptionPane.showMessageDialog(this, "Error cargando catálogos: " + e.getMessage(),
                 "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (UnauthorizedException e) {
+            JOptionPane.showMessageDialog(this,
+                "Acceso restringido: " + e.getMessage(),
+                "Permisos", JOptionPane.WARNING_MESSAGE);
         }
     }
 

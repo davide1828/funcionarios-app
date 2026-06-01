@@ -4,6 +4,7 @@ import com.gestion.funcionarios.config.DatabaseConnection;
 import com.gestion.funcionarios.dao.FuncionarioDAO;
 import com.gestion.funcionarios.exception.DAOException;
 import com.gestion.funcionarios.model.*;
+import com.gestion.funcionarios.security.Role;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -26,7 +27,7 @@ public class FuncionarioDAOImpl implements FuncionarioDAO {
     /** Columnas comunes del SELECT con todos los JOINs necesarios. */
     private static final String BASE_SELECT = "SELECT f.id, f.nombres, f.apellidos, f.numero_documento, " +
             "       f.fecha_nacimiento, f.fecha_ingreso, f.email, f.telefono, " +
-            "       f.estado, f.created_at, f.updated_at, " +
+            "       f.estado, f.password_hash, f.rol, f.created_at, f.updated_at, " +
             // tipo_documento
             "       td.id AS td_id, td.codigo AS td_codigo, td.nombre AS td_nombre, td.activo AS td_activo, " +
             // cargo
@@ -57,14 +58,14 @@ public class FuncionarioDAOImpl implements FuncionarioDAO {
 
     private static final String SQL_INSERT = "INSERT INTO funcionarios " +
             "(nombres, apellidos, tipo_doc_id, numero_documento, fecha_nacimiento, " +
-            " fecha_ingreso, email, telefono, cargo_id, municipio_id, estado) " +
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+            " fecha_ingreso, email, telefono, cargo_id, municipio_id, estado, password_hash, rol) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::rol_usuario) " +
             "RETURNING id";
 
     private static final String SQL_UPDATE = "UPDATE funcionarios SET " +
             "  nombres = ?, apellidos = ?, tipo_doc_id = ?, numero_documento = ?, " +
             "  fecha_nacimiento = ?, fecha_ingreso = ?, email = ?, telefono = ?, " +
-            "  cargo_id = ?, municipio_id = ?, estado = ? " +
+            "  cargo_id = ?, municipio_id = ?, estado = ?, password_hash = ?, rol = ?::rol_usuario " +
             "WHERE id = ?";
 
     private static final String SQL_DELETE = "DELETE FROM funcionarios WHERE id = ?";
@@ -163,7 +164,7 @@ public class FuncionarioDAOImpl implements FuncionarioDAO {
                 PreparedStatement ps = con.prepareStatement(SQL_UPDATE)) {
 
             bindParams(ps, f);
-            ps.setInt(12, f.getId()); // WHERE id = ?
+            ps.setInt(14, f.getId()); // WHERE id = ?
             return ps.executeUpdate() > 0;
 
         } catch (SQLException e) {
@@ -218,6 +219,8 @@ public class FuncionarioDAOImpl implements FuncionarioDAO {
         ps.setInt(9, f.getCargo().getId());
         ps.setInt(10, f.getMunicipio().getId());
         ps.setString(11, f.getEstado());
+        ps.setString(12, f.getPasswordHash());
+        ps.setString(13, f.getRol() != null ? f.getRol().name() : null);
     }
 
     /**
@@ -265,6 +268,8 @@ public class FuncionarioDAOImpl implements FuncionarioDAO {
         f.setCargo(cargo);
         f.setMunicipio(municipio);
         f.setEstado(rs.getString("estado"));
+        f.setPasswordHash(rs.getString("password_hash"));
+        f.setRol(Role.fromString(rs.getString("rol")));
         f.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
         f.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
         return f;

@@ -181,6 +181,8 @@ public class InventariosPanel extends JPanel {
             poblar(inventarioService.findAll());
         } catch (DAOException e) {
             mostrarError("Error al cargar inventarios", e.getMessage());
+        } catch (RuntimeException e) {
+            mostrarError("Error al cargar inventarios", e.getMessage());
         }
     }
 
@@ -189,6 +191,8 @@ public class InventariosPanel extends JPanel {
             String texto = txtBuscar.getText().trim();
             poblar(texto.isEmpty() ? inventarioService.findAll() : inventarioService.findByTexto(texto));
         } catch (DAOException e) {
+            mostrarError("Error en búsqueda", e.getMessage());
+        } catch (RuntimeException e) {
             mostrarError("Error en búsqueda", e.getMessage());
         }
     }
@@ -203,6 +207,8 @@ public class InventariosPanel extends JPanel {
                 cargarDatos();
                 JOptionPane.showMessageDialog(this, "Inventario creado exitosamente.");
             } catch (DAOException | UnauthorizedException e) {
+                mostrarError("Error al crear inventario", e.getMessage());
+            } catch (RuntimeException e) {
                 mostrarError("Error al crear inventario", e.getMessage());
             }
         }
@@ -221,6 +227,8 @@ public class InventariosPanel extends JPanel {
                 JOptionPane.showMessageDialog(this, "Inventario actualizado exitosamente.");
             } catch (DAOException | UnauthorizedException e) {
                 mostrarError("Error al actualizar inventario", e.getMessage());
+            } catch (RuntimeException e) {
+                mostrarError("Error al actualizar inventario", e.getMessage());
             }
         }
     }
@@ -236,6 +244,8 @@ public class InventariosPanel extends JPanel {
                 inventarioService.deleteById(inv.getId());
                 cargarDatos();
             } catch (DAOException | UnauthorizedException e) {
+                mostrarError("Error al eliminar", e.getMessage());
+            } catch (RuntimeException e) {
                 mostrarError("Error al eliminar", e.getMessage());
             }
         }

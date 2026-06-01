@@ -39,8 +39,9 @@ public class CatalogoService {
         return estadoEquipoDAO.findAll();
     }
 
-    public List<EstadoEquipo> findEstadosActivos() throws DAOException {
-        session.requireToken();
+    public List<EstadoEquipo> findEstadosActivos() throws DAOException, UnauthorizedException {
+        // Solo ADMINISTRADOR: los docentes solo pueden visualizar inventarios
+        requireAdmin();
         return estadoEquipoDAO.findAllActivos();
     }
 
@@ -66,8 +67,8 @@ public class CatalogoService {
         return marcaDAO.findAll();
     }
 
-    public List<Marca> findMarcasActivas() throws DAOException {
-        session.requireToken();
+    public List<Marca> findMarcasActivas() throws DAOException, UnauthorizedException {
+        requireAdmin();
         return marcaDAO.findAllActivos();
     }
 
@@ -93,8 +94,8 @@ public class CatalogoService {
         return tipoEquipoDAO.findAll();
     }
 
-    public List<TipoEquipo> findTiposActivos() throws DAOException {
-        session.requireToken();
+    public List<TipoEquipo> findTiposActivos() throws DAOException, UnauthorizedException {
+        requireAdmin();
         return tipoEquipoDAO.findAllActivos();
     }
 

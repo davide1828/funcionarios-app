@@ -145,8 +145,14 @@ public class LoginFrame extends JFrame {
     }
 
     private void abrirMainFrame() {
-        dispose();
-        new MainFrame().setVisible(true);
+        try {
+            MainFrame main = new MainFrame();
+            dispose();
+            main.setVisible(true);
+        } catch (RuntimeException ex) {
+            // Evitar que la app “muera” por un error inesperado post-login
+            lblError.setText("⚠ Error al abrir el módulo: " + ex.getMessage());
+        }
     }
 
     private JLabel label(String texto) {
